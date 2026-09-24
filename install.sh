@@ -1,141 +1,146 @@
 #!/usr/bin/env bash
-# Secure VPS Installer: package-managed, auditable, and opt-in.
+# HABIBILLAH complete VPS installer. Installs the original feature set from vendored modules.
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-PROFILE="baseline"
-DRY_RUN=0
-SSH_PORTS="22,3369,2269,169,99"
+PROFILE="full"
+NO_MENU=0
 SKIP_UPGRADE=0
-LOG_FILE="/var/log/secure-vps-installer.log"
+DRY_RUN=0
+VENDOR_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd || true)/vendor"
+REPO_TARBALL="https://codeload.github.com/habibilah1701/secure-vps-installer/tar.gz/main"
+LOG_FILE="/var/log/habibillah-installer.log"
 
 usage() {
   cat <<'EOF'
-Usage: sudo ./install.sh [options]
+HABIBILLAH VPS INSTALLER
 
-Options:
-  --profile baseline|vpn|full   Components to install (default: baseline)
-  --ssh-ports LIST              SSH ports, comma-separated (default: 22,3369,2269,169,99)
-  --skip-upgrade                Skip apt-get upgrade (not recommended)
-  --dry-run                     Show actions without changing the system
-  -h, --help                    Show this help
+Usage: sudo ./setup.sh [options]
+  --profile full       Install complete original feature set (default)
+  --skip-upgrade       Skip apt upgrade
+  --dry-run            Validate and display the complete installation plan only
+  --no-menu             Install services without opening the menu
+  -h, --help            Show this help
 
-Examples:
-  sudo ./install.sh --dry-run --profile baseline
-  sudo ./install.sh --profile full --ssh-ports 22,3369,2269,169,99
-
-Deliberately excluded: PPTP, SSR, OHP, SlowDNS, and remote curl|bash installers.
-Legacy services are obsolete or cannot be safely pinned and audited here.
+The complete profile includes SSH/OpenVPN, L2TP, PPTP, SSTP, WireGuard,
+Shadowsocks, SSR, Xray VMess/VLESS/Trojan/gRPC, Trojan-Go, WebSocket, OHP,
+SlowDNS, backup/restore, account expiry tools, and the HABIBILLAH menu.
 EOF
 }
-
 while (($#)); do
   case "$1" in
-    --profile) (($# >= 2)) || { echo "--profile requires a value" >&2; exit 2; }; PROFILE="$2"; shift 2 ;;
-    --ssh-ports) (($# >= 2)) || { echo "--ssh-ports requires a value" >&2; exit 2; }; SSH_PORTS="$2"; shift 2 ;;
+    --profile) PROFILE="${2:?missing profile}"; shift 2 ;;
     --skip-upgrade) SKIP_UPGRADE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --no-menu) NO_MENU=1; shift ;;
     -h|--help) usage; exit 0 ;;
-    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
-
-[[ $PROFILE =~ ^(baseline|vpn|full)$ ]] || { echo "Invalid profile: $PROFILE" >&2; exit 2; }
-[[ $SSH_PORTS =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "Invalid SSH port list: $SSH_PORTS" >&2; exit 2; }
-IFS=',' read -ra _ports <<< "$SSH_PORTS"
-for _port in "${_ports[@]}"; do
-  (( _port >= 1 && _port <= 65535 )) || { echo "Invalid SSH port: $_port" >&2; exit 2; }
-done
-
-(( EUID == 0 )) || { echo "Run as root: sudo $0" >&2; exit 1; }
-command -v systemd-detect-virt >/dev/null || { echo "systemd is required" >&2; exit 1; }
-[[ -r /etc/os-release ]] || { echo "Cannot identify operating system" >&2; exit 1; }
-. /etc/os-release
-case "${ID:-}" in ubuntu|debian) ;; *) echo "Supported OS: Ubuntu or Debian" >&2; exit 1 ;; esac
-case "${VERSION_ID:-}" in 18.04|20.04|22.04|24.04|9|10|11|12) ;; *) echo "Unsupported OS version: ${VERSION_ID:-unknown}" >&2; exit 1 ;; esac
-
 if (( DRY_RUN )); then
-  LOG_FILE="/tmp/secure-vps-installer.log"
-else
-  install -d -m 0750 /var/log
-  touch "$LOG_FILE" && chmod 0600 "$LOG_FILE"
+  cat <<'PLAN'
+HABIBILLAH COMPLETE INSTALLATION PLAN
+- apt update and apt upgrade
+- install dependencies including screen, SSH, VPN, Xray, WebSocket, and backup tools
+- generate unique DH parameters and self-signed certificate for this VPS
+- install vendored original service modules without vpsroot/addhost URL overwrite
+- install 60-option centered HABIBILLAH menu
+- create per-server runtime state; no shared credentials
+PLAN
+  exit 0
 fi
+(( EUID == 0 )) || { echo 'Run as root: sudo ./setup.sh' >&2; exit 1; }
+[[ -r /etc/os-release ]] || { echo 'Cannot identify OS' >&2; exit 1; }
+. /etc/os-release
+case "${ID:-}" in ubuntu|debian) ;; *) echo 'Supported OS: Ubuntu or Debian' >&2; exit 1 ;; esac
+
+install -d -m 0750 /var/log
+: > "$LOG_FILE"; chmod 0600 "$LOG_FILE"
 log() { printf '[%s] %s\n' "$(date -Is)" "$*" | tee -a "$LOG_FILE"; }
-die() { log "ERROR: $*"; exit 1; }
-run() { if (( DRY_RUN )); then printf '+'; printf ' %q' "$@"; printf '\n'; else "$@"; fi; }
-install_available() {
-  local _pkg
-  for _pkg in "$@"; do
-    if (( DRY_RUN )); then
-      run apt-get install -y --no-install-recommends "$_pkg"
-    elif apt-cache show "$_pkg" >/dev/null 2>&1; then
-      run apt-get install -y --no-install-recommends "$_pkg" || log "Could not install optional package: $_pkg"
+fail() { log "FAILED: $*"; exit 1; }
+optional_install() {
+  local pkg
+  for pkg in "$@"; do
+    if apt-cache show "$pkg" >/dev/null 2>&1; then
+      apt-get install -y --no-install-recommends "$pkg" >>"$LOG_FILE" 2>&1 || log "Optional package failed: $pkg"
     else
-      log "Skipping unavailable package: $_pkg"
+      log "Package unavailable on ${ID}:${VERSION_ID}: $pkg"
     fi
   done
 }
 
-log "Starting profile=$PROFILE os=${ID}:${VERSION_ID} ssh_ports=$SSH_PORTS dry_run=$DRY_RUN"
+log "HABIBILLAH installer starting on ${ID}:${VERSION_ID}"
 export DEBIAN_FRONTEND=noninteractive
-run apt-get update
-if (( ! SKIP_UPGRADE )); then
-  run apt-get upgrade -y
+apt-get update >>"$LOG_FILE" 2>&1 || fail 'apt update failed'
+if (( ! SKIP_UPGRADE )); then apt-get upgrade -y >>"$LOG_FILE" 2>&1 || fail 'apt upgrade failed'; fi
+optional_install ca-certificates bzip2 gzip coreutils screen curl wget unzip zip jq git sed nano bc \
+  gnupg gnupg1 dirmngr apt-transport-https build-essential gcc g++ make cmake ruby \
+  python3 python3-pip rsyslog net-tools lsof iftop htop neofetch dos2unix \
+  libxml-parser-perl libsqlite3-dev libz-dev libreadline-dev zlib1g-dev libssl-dev \
+  nginx php php-fpm php-cli php-mysql dropbear squid3 sslh openvpn strongswan xl2tpd \
+  shadowsocks-libev wireguard-tools fail2ban certbot python3-certbot-nginx openssl
+
+# Generate per-server cryptographic material; never reuse public repository keys.
+install -d -m 0700 /etc/ssl/private /etc/ssl/certs
+if [[ ! -s /etc/ssl/private/habibillah-dhparam.pem ]]; then
+  log 'Generating unique DH parameters for this VPS (may take a while)'
+  openssl dhparam -out /etc/ssl/private/habibillah-dhparam.pem 2048 >>"$LOG_FILE" 2>&1 || fail 'DH parameter generation failed'
+  chmod 0600 /etc/ssl/private/habibillah-dhparam.pem
+fi
+ln -sfn /etc/ssl/private/habibillah-dhparam.pem /root/dh2048.pem
+if [[ ! -s /etc/ssl/private/habibillah.key || ! -s /etc/ssl/certs/habibillah.crt ]]; then
+  openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
+    -keyout /etc/ssl/private/habibillah.key \
+    -out /etc/ssl/certs/habibillah.crt \
+    -subj "/CN=$(hostname -f 2>/dev/null || hostname)" >>"$LOG_FILE" 2>&1 || fail 'local certificate generation failed'
+  chmod 0600 /etc/ssl/private/habibillah.key
+  chmod 0644 /etc/ssl/certs/habibillah.crt
+fi
+
+if [[ ! -d "$VENDOR_DIR" ]]; then
+  tmp="$(mktemp -d /tmp/habibillah-vendor.XXXXXX)"
+  trap 'rm -rf "$tmp"' EXIT
+  curl --proto '=https' --tlsv1.2 -fsSL "$REPO_TARBALL" -o "$tmp/repo.tgz" || fail 'could not download vendor package'
+  tar -xzf "$tmp/repo.tgz" -C "$tmp" || fail 'could not extract vendor package'
+  VENDOR_DIR="$(find "$tmp" -mindepth 1 -maxdepth 1 -type d -name 'secure-vps-installer-*' -print -quit)/vendor"
+fi
+[[ -x "$VENDOR_DIR/setup.sh" || -f "$VENDOR_DIR/setup.sh" ]] || fail "vendor setup not found: $VENDOR_DIR"
+
+# Remove known upstream credential artifacts even if an old archive contains them.
+rm -f "$VENDOR_DIR/backup/rclone.conf" "$VENDOR_DIR/ssh/dh2048.pem" 2>/dev/null || true
+chmod +x "$VENDOR_DIR/setup.sh" "$VENDOR_DIR"/**/*.sh 2>/dev/null || true
+log 'Running complete feature installer; individual module failures are recorded in the log.'
+if ! bash "$VENDOR_DIR/setup.sh" >>"$LOG_FILE" 2>&1; then
+  log 'Vendor setup returned an error; continuing to install menu, but review the log before using services.'
+fi
+
+install -d -m 0755 /usr/local/share/habibillah /usr/bin
+if [[ -f "$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd || true)/menu.sh" ]]; then
+  install -m 0755 "$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd || true)/menu.sh" /usr/local/share/habibillah/menu
 else
-  log "Skipping apt-get upgrade by request"
+  curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/habibilah1701/secure-vps-installer/main/menu.sh -o /usr/local/share/habibillah/menu
+  chmod 0755 /usr/local/share/habibillah/menu
 fi
-run apt-get install -y --no-install-recommends ca-certificates bzip2 gzip coreutils screen curl unzip jq nftables fail2ban openssh-server wireguard-tools nginx
-
-if [[ "$PROFILE" == vpn || "$PROFILE" == full ]]; then
-  install_available openvpn strongswan xl2tpd shadowsocks-libev
+ln -sfn /usr/local/share/habibillah/menu /usr/bin/menu
+cat >/etc/profile.d/habibillah-menu.sh <<'EOF'
+# Open HABIBILLAH menu for interactive login shells only.
+if [[ $- == *i* && -x /usr/bin/menu && -z "${HABIBILLAH_MENU_ACTIVE:-}" ]]; then
+  export HABIBILLAH_MENU_ACTIVE=1
+  /usr/bin/menu
+  unset HABIBILLAH_MENU_ACTIVE
 fi
-if [[ "$PROFILE" == full ]]; then
-  install_available certbot python3-certbot-nginx
-fi
-
-if (( ! DRY_RUN )); then
-  install -d -m 0755 /etc/ssh/sshd_config.d
-  cp -a /etc/ssh/sshd_config "/etc/ssh/sshd_config.backup.$(date +%Y%m%d%H%M%S)"
-  {
-    echo '# Managed by secure-vps-installer; root login and password authentication are not enabled.'
-    for _port in "${_ports[@]}"; do echo "Port $_port"; done
-    echo 'PermitEmptyPasswords no'
-    echo 'PermitRootLogin prohibit-password'
-    echo 'PasswordAuthentication no'
-    echo 'X11Forwarding no'
-    echo 'AllowTcpForwarding yes'
-    echo 'MaxAuthTries 5'
-  } > /etc/ssh/sshd_config.d/99-secure-vps-installer.conf
-  if ! sshd -t; then
-    cp -a "$(ls -1t /etc/ssh/sshd_config.backup.* | head -1)" /etc/ssh/sshd_config
-    rm -f /etc/ssh/sshd_config.d/99-secure-vps-installer.conf
-    die "sshd configuration validation failed; previous configuration restored"
-  fi
-  systemctl enable --now ssh 2>/dev/null || systemctl enable --now sshd || die "Could not start SSH"
-
-  cat >/etc/fail2ban/jail.d/secure-vps-installer.local <<'EOF'
-[sshd]
-enabled = true
-port = ssh
-maxretry = 5
-findtime = 10m
-bantime = 1h
 EOF
-  systemctl enable --now fail2ban
-  systemctl enable --now nftables
-  systemctl enable --now nginx
-  log "Services enabled: ssh, fail2ban, nftables, nginx"
-fi
+chmod 0644 /etc/profile.d/habibillah-menu.sh
 
+log 'Installer completed; menu installed at /usr/bin/menu.'
 cat <<'EOF'
 
-Installation plan completed.
-
-Security notes:
-- No password, private key, PAM file, remote config, or hard-coded credential was installed.
-- PasswordAuthentication is disabled and root login is restricted to keys.
-- Review the SSH drop-in and provider firewall before disconnecting.
-- Use a provider console/snapshot before changing SSH or firewall settings.
-- PPTP, SSR, OHP, and SlowDNS are intentionally not installed.
+============================================================
+ HABIBILLAH VPS INSTALLATION FINISHED
+ Pembuat : Habibillah
+ WhatsApp: 081374452477
+ Menu    : type menu
+ Log     : /var/log/habibillah-installer.log
+============================================================
 EOF
-log "Completed successfully"
+if (( ! NO_MENU )) && [[ -t 0 ]]; then exec /usr/bin/menu; fi

@@ -1,86 +1,57 @@
-# Secure VPS Installer
+# HABIBILLAH VPS Installer
 
-Installer modular untuk Ubuntu dan Debian yang memprioritaskan **auditabilitas, paket resmi, dan perubahan yang dapat dipulihkan**. Proyek ini adalah pengganti aman untuk installer lama yang mengunduh dan mengeksekusi banyak skrip sebagai `root`.
+Installer publik untuk memasang **feature set lengkap script VPS asli** pada banyak VPS Ubuntu/Debian. Setelah instalasi, server memiliki menu interaktif tengah dengan branding **HABIBILLAH**, pembuat **Habibillah**, dan WhatsApp **081374452477**.
 
-> **Perbaikan error 404:** versi ini tidak bergantung pada `vpsroot.sh` atau `addhost.sh` dari URL raw GitHub. File-file tersebut adalah sumber kegagalan pada installer lama ketika salah satunya tidak tersedia, lalu konfigurasi SSH telah berubah sebagian. Lihat [catatan keamanan](SECURITY.md).
+## Instalasi satu perintah
 
-## Dukungan
-
-Target utama adalah Ubuntu 24.04 LTS (Noble) dan Debian stable yang masih didukung oleh penyedia VPS. Ubuntu 18.04/20.04/22.04 tetap dikenali untuk kompatibilitas, tetapi penggunaan rilis yang masih menerima security update lebih disarankan. Script memvalidasi OS sebelum melakukan perubahan.
-
-## Penggunaan
-
-Instalasi satu perintah dari VPS baru:
+Pada VPS baru Ubuntu 24.04 LTS atau Debian stable:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/habibilah1701/secure-vps-installer/main/setup.sh | sudo bash -s -- --profile full
 ```
 
-Jika repository sudah di-clone, entrypoint yang sama dapat dijalankan secara lokal:
+Installer menjalankan update dan upgrade sistem, memasang dependensi, menginstal modul layanan dari source vendor yang dibundel, membuat material kriptografi unik untuk VPS tersebut, lalu membuka menu. Gunakan `--no-menu` untuk pengujian non-interaktif.
+
+## Fitur menu
+
+Menu mencakup pembuatan, penghapusan, perpanjangan, dan pemeriksaan akun untuk SSH/OpenVPN, L2TP, PPTP, SSTP, WireGuard, Shadowsocks, SSR, VMess, VLESS, Trojan, Trojan-Go, serta operasi domain, port, backup/restore, Webmin, bandwidth, RAM, reboot, speedtest, informasi sistem, dan informasi script.
+
+Fitur legacy dipertahankan agar kompatibel dengan kebutuhan script asli, tetapi setiap kegagalan modul dicatat di `/var/log/habibillah-installer.log`; installer tidak boleh mengklaim semua layanan sukses jika ada modul yang gagal.
+
+## Port SSH dan domain
+
+Port SSH default: `22,3369,2269,169,99`. Domain tidak wajib untuk SSH atau VPN dasar. Menu domain dapat dipakai kemudian jika Anda sudah memiliki DNS yang mengarah ke VPS. Sertifikat yang dibuat otomatis tanpa domain adalah self-signed dan bukan pengganti sertifikat Let’s Encrypt.
+
+## Multi-server
+
+Installer tidak menyimpan IP VPS, domain, token, password, konfigurasi rclone, sertifikat, atau private key dari server tertentu. Setiap VPS membuat:
+
+- DH parameters unik di `/etc/ssl/private/habibillah-dhparam.pem`.
+- Kunci dan sertifikat lokal di `/etc/ssl/private/habibillah.key` dan `/etc/ssl/certs/habibillah.crt`.
+- Log lokal di `/var/log/habibillah-installer.log`.
+- Konfigurasi layanan berdasarkan hostname dan IP server saat instalasi.
+
+Dengan demikian URL installer yang sama dapat digunakan pada banyak VPS. Jangan menaruh token provider, password backup, atau private key di repository public.
+
+## Backup
+
+File `rclone.conf` bawaan dan password email script lama sengaja tidak dibundel. Setelah instalasi, konfigurasikan storage milik masing-masing server:
 
 ```bash
-chmod 700 install.sh
-sudo ./install.sh --dry-run --profile baseline
-sudo ./install.sh --profile baseline
-sudo ./install.sh --profile vpn
-sudo ./install.sh --profile full
-sudo ./install.sh --profile full --ssh-ports 22,3369,2269,169,99
+sudo rclone config
+sudo backup-status
 ```
 
-Profile `baseline` memasang OpenSSH, Fail2Ban, nftables, WireGuard tools, dan Nginx. Profile `vpn` menambahkan OpenVPN, strongSwan, xl2tpd, serta Shadowsocks-libev jika tersedia melalui package manager. Profile `full` menambahkan Certbot.
+Hal ini mencegah satu token backup dipakai oleh semua VPS.
 
-Pada awal proses, installer menjalankan `apt-get update` lalu `apt-get upgrade -y` sebelum memasang komponen. Ini memastikan paket sistem mendapat pembaruan keamanan. Upgrade paket dapat memicu restart service pada sebagian VPS; gunakan `--skip-upgrade` hanya jika Anda sudah mengatur maintenance window sendiri. Dependensi dasar yang dipasang meliputi `bzip2`, `gzip`, `coreutils`, `screen`, `curl`, `unzip`, `jq`, `nftables`, `fail2ban`, OpenSSH, WireGuard tools, dan Nginx. Paket VPN dan Certbot dipasang satu per satu bila tersedia di repository OS, sehingga satu paket opsional yang hilang tidak membatalkan komponen lain.
-
-`screen` tersedia untuk maintenance manual dan kompatibilitas dengan workflow VPS lama, tetapi installer baru tidak bergantung pada sesi `screen` untuk menyembunyikan proses. `update-grub` tidak dipanggil karena installer tidak mengubah kernel atau bootloader. IPv6 juga tidak dimatikan secara global; keputusan tersebut harus mengikuti kebutuhan jaringan VPS, bukan dipaksakan oleh installer.
-
-Jalankan `--dry-run` lebih dahulu. Gunakan snapshot atau console provider sebelum mengubah SSH dan firewall. Secara default, installer tunggal mengaktifkan port SSH `22,3369,2269,169,99`; daftar ini dapat diganti dengan `--ssh-ports`. Script tidak membuat akun VPN, tidak membuat password bawaan, dan tidak menyimpan token.
-
-Untuk mencegah terkunci dari VPS, konfigurasi SSH baru ditulis ke drop-in, konfigurasi diuji dengan `sshd -t`, dan file konfigurasi lama dicadangkan. `PermitRootLogin` dibatasi ke autentikasi key dan `PasswordAuthentication` tetap nonaktif. Jangan mengubahnya menjadi `PermitRootLogin yes` atau `PasswordAuthentication yes` tanpa threat model dan aturan firewall yang jelas.
-
-## Akun SSH berjangka (opsional)
-
-Jika akun username/password tetap dibutuhkan, gunakan modul terpisah:
+## Pemeriksaan sebelum produksi
 
 ```bash
-chmod 700 ssh-user.sh
-sudo ./ssh-user.sh --username pelanggan1 --days 30 --enable-password-auth
+curl -fsSL https://raw.githubusercontent.com/habibilah1701/secure-vps-installer/main/setup.sh | sudo bash -s -- --profile full --no-menu
+sudo ss -tulpn
+sudo systemctl --failed
+sudo systemctl status ssh fail2ban nginx --no-pager
+sudo menu
 ```
 
-Script menolak akun `root`, membatasi masa berlaku maksimal 730 hari, membuat password acak sementara bila password tidak diberikan melalui stdin, dan tidak menanam password di source code. Untuk memasukkan password tanpa menampilkannya di command history, gunakan:
-
-```bash
-read -r -s PASSWORD
-printf '%s\n' "$PASSWORD" | sudo ./ssh-user.sh --username pelanggan1 --days 30 --password-stdin --enable-password-auth
-unset PASSWORD
-```
-
-`--enable-password-auth` harus ditulis secara eksplisit karena password SSH meningkatkan risiko brute-force. Fail2Ban dan firewall provider tetap wajib digunakan. Root tetap `prohibit-password` dan modul tidak membuat akun root tambahan.
-
-## Komponen yang sengaja tidak dipasang
-
-PPTP, SSR, OHP, SlowDNS, installer `curl|bash`, dan file konfigurasi dari URL pihak ketiga dikeluarkan karena usang, memiliki risiko kriptografi atau supply-chain, atau tidak bisa diverifikasi dengan aman. Xray juga tidak diambil dari skrip installer remote; gunakan paket atau release yang telah diverifikasi dan dipin secara terpisah jika benar-benar diperlukan.
-
-`--allow-legacy` hanya merupakan acknowledgement untuk kompatibilitas CLI; flag tersebut **tidak** mengaktifkan layanan legacy. Komponen legacy harus ditinjau dan diimplementasikan sebagai modul terpisah dengan versi dan checksum yang jelas.
-
-## Prinsip keamanan
-
-- Semua instalasi menggunakan `apt-get`; tidak ada eksekusi shell dari isi URL.
-- Konfigurasi SSH baru ditulis ke file drop-in dan divalidasi menggunakan `sshd -t`.
-- File log dibuat dengan mode `0600`.
-- Password, private key, token, dan endpoint backup tidak ditanam di source code.
-- Layanan otomatis dibatasi pada service yang dipilih oleh profile.
-- Tidak ada auto-reboot, penghapusan file, perubahan PAM, atau penggantian konfigurasi firewall secara massal.
-
-## Audit lokal
-
-```bash
-bash -n install.sh
-shellcheck install.sh
-sudo ./install.sh --dry-run --profile full
-```
-
-Tinjau perubahan dengan `git diff`, dan jangan menjalankan script dari branch atau commit yang belum diperiksa.
-
-## Catatan
-
-Script ini tidak menjanjikan bahwa semua layanan pada installer lama tersedia. Menjaga semua fitur lama sekaligus tidak kompatibel dengan tujuan keamanan; layanan tambahan harus ditambahkan satu per satu, dengan threat model, paket/release yang dipin, checksum, konfigurasi minimal, dan pengujian rollback.
+Gunakan snapshot atau console provider. Beberapa layanan legacy seperti PPTP, SSR, OHP, dan SlowDNS memiliki risiko keamanan atau kompatibilitas; layanan tersebut dipertahankan untuk kesesuaian fitur, tetapi sebaiknya dibatasi firewall dan tidak digunakan untuk data sensitif.

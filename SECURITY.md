@@ -1,13 +1,15 @@
 # Security notes
 
-## Perbaikan error 404 pada installer lama
+## Perbaikan error 404
 
-Installer lama mengambil file remote seperti `vpsroot.sh`, `sshd_config`, dan `addhost.sh` dari repository lain lalu menimpakan hasilnya ke `/etc/ssh/sshd_config` dan menjalankan `systemctl restart sshd`. Jika `addhost.sh` tidak ada atau URL menghasilkan `404`, proses dapat berhenti setelah sebagian konfigurasi diterapkan; akibatnya SSH dapat gagal restart atau akses VPS bisa hilang.
+Installer asli menimpa `/etc/ssh/sshd_config` dengan `vpsroot.sh` dan `addhost.sh` dari URL remote. Jika file tidak tersedia atau berubah, konfigurasi SSH dapat rusak. Versi HABIBILLAH menggunakan `vendor/vpsroot.sh` lokal yang menulis drop-in, menjalankan `sshd -t`, dan tidak mengambil `addhost.sh`.
 
-Versi ini **tidak menggunakan** `vpsroot.sh`, `addhost.sh`, `wget` ke konfigurasi SSH, atau `curl|bash`. Konfigurasi SSH dikelola secara lokal melalui drop-in `/etc/ssh/sshd_config.d/99-secure-vps-installer.conf`, dicadangkan, dan divalidasi dengan `sshd -t` sebelum service dijalankan.
+## Portabilitas multi-VPS
 
-## Port dan autentikasi
+Tidak ada IP, domain, sertifikat, private key, rclone config, token, atau password server tertentu di repository. Material DH dan sertifikat self-signed dibuat pada saat instalasi di setiap VPS. Backup remote harus dikonfigurasi sendiri dengan `rclone config`.
 
-Port default installer adalah `22,3369,2269,169,99`. Daftar tersebut dapat diganti dengan `--ssh-ports`, dan provider firewall juga harus disesuaikan. Script tidak mengaktifkan `PermitRootLogin yes` dan tidak mengaktifkan `PasswordAuthentication yes`; akses key-based lebih aman dan mencegah kredensial bawaan.
+## Kompatibilitas versus keamanan
 
-Jika validasi SSH gagal, installer menghapus drop-in baru dan mengembalikan konfigurasi utama dari backup yang dibuat pada proses tersebut. Tetap gunakan console provider atau snapshot sebagai jalur pemulihan.
+Profile `full` mempertahankan modul legacy dari script asli—termasuk PPTP, SSR, OHP, dan SlowDNS—karena itu diminta untuk kompatibilitas fitur. Modul tersebut memiliki risiko keamanan/kriptografi dan harus dibatasi pada firewall provider. Installer mencatat kegagalan modul dan tidak menyamarkan kegagalan sebagai sukses.
+
+Root tetap tidak diberi password oleh installer. Jangan memasukkan password, token, atau private key ke repository public.
