@@ -25,6 +25,25 @@ Jalankan `--dry-run` lebih dahulu. Gunakan snapshot atau console provider sebelu
 
 Untuk mencegah terkunci dari VPS, konfigurasi SSH baru ditulis ke drop-in, konfigurasi diuji dengan `sshd -t`, dan file konfigurasi lama dicadangkan. `PermitRootLogin` dibatasi ke autentikasi key dan `PasswordAuthentication` tetap nonaktif. Jangan mengubahnya menjadi `PermitRootLogin yes` atau `PasswordAuthentication yes` tanpa threat model dan aturan firewall yang jelas.
 
+## Akun SSH berjangka (opsional)
+
+Jika akun username/password tetap dibutuhkan, gunakan modul terpisah:
+
+```bash
+chmod 700 ssh-user.sh
+sudo ./ssh-user.sh --username pelanggan1 --days 30 --enable-password-auth
+```
+
+Script menolak akun `root`, membatasi masa berlaku maksimal 730 hari, membuat password acak sementara bila password tidak diberikan melalui stdin, dan tidak menanam password di source code. Untuk memasukkan password tanpa menampilkannya di command history, gunakan:
+
+```bash
+read -r -s PASSWORD
+printf '%s\n' "$PASSWORD" | sudo ./ssh-user.sh --username pelanggan1 --days 30 --password-stdin --enable-password-auth
+unset PASSWORD
+```
+
+`--enable-password-auth` harus ditulis secara eksplisit karena password SSH meningkatkan risiko brute-force. Fail2Ban dan firewall provider tetap wajib digunakan. Root tetap `prohibit-password` dan modul tidak membuat akun root tambahan.
+
 ## Komponen yang sengaja tidak dipasang
 
 PPTP, SSR, OHP, SlowDNS, installer `curl|bash`, dan file konfigurasi dari URL pihak ketiga dikeluarkan karena usang, memiliki risiko kriptografi atau supply-chain, atau tidak bisa diverifikasi dengan aman. Xray juga tidak diambil dari skrip installer remote; gunakan paket atau release yang telah diverifikasi dan dipin secara terpisah jika benar-benar diperlukan.
