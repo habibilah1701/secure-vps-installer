@@ -72,7 +72,7 @@ if (( ! SKIP_UPGRADE )); then
 else
   log "Skipping apt-get upgrade by request"
 fi
-run apt-get install -y --no-install-recommends ca-certificates bzip2 gzip coreutils curl unzip jq nftables fail2ban openssh-server wireguard-tools nginx
+run apt-get install -y --no-install-recommends ca-certificates bzip2 gzip coreutils screen curl unzip jq nftables fail2ban openssh-server wireguard-tools nginx
 
 if [[ "$PROFILE" == vpn || "$PROFILE" == full ]]; then
   run apt-get install -y --no-install-recommends openvpn strongswan xl2tpd shadowsocks-libev || log "Some optional VPN packages are unavailable; continuing"
