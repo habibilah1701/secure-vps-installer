@@ -8,6 +8,6 @@ Versi ini **tidak menggunakan** `vpsroot.sh`, `addhost.sh`, `wget` ke konfiguras
 
 ## Port dan autentikasi
 
-Port default hanya `22`. Port tambahan dapat dipilih dengan `--ssh-ports`, tetapi provider firewall juga harus disesuaikan. Script tidak mengaktifkan `PermitRootLogin yes` dan tidak mengaktifkan `PasswordAuthentication yes`; akses key-based lebih aman dan mencegah kredensial bawaan.
+Port default installer adalah `22,3369,2269,169,99`. Daftar tersebut dapat diganti dengan `--ssh-ports`, dan provider firewall juga harus disesuaikan. Script tidak mengaktifkan `PermitRootLogin yes` dan tidak mengaktifkan `PasswordAuthentication yes`; akses key-based lebih aman dan mencegah kredensial bawaan.
 
 Jika validasi SSH gagal, installer menghapus drop-in baru dan mengembalikan konfigurasi utama dari backup yang dibuat pada proses tersebut. Tetap gunakan console provider atau snapshot sebagai jalur pemulihan.

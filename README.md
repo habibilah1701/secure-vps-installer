@@ -25,7 +25,7 @@ Pada awal proses, installer menjalankan `apt-get update` lalu `apt-get upgrade -
 
 `screen` tersedia untuk maintenance manual dan kompatibilitas dengan workflow VPS lama, tetapi installer baru tidak bergantung pada sesi `screen` untuk menyembunyikan proses. `update-grub` tidak dipanggil karena installer tidak mengubah kernel atau bootloader. IPv6 juga tidak dimatikan secara global; keputusan tersebut harus mengikuti kebutuhan jaringan VPS, bukan dipaksakan oleh installer.
 
-Jalankan `--dry-run` lebih dahulu. Gunakan snapshot atau console provider sebelum mengubah SSH dan firewall. Port SSH default hanya `22`; port tambahan seperti `3369`, `2269`, `169`, dan `99` harus diminta secara eksplisit. Script tidak membuat akun VPN, tidak membuat password bawaan, dan tidak menyimpan token.
+Jalankan `--dry-run` lebih dahulu. Gunakan snapshot atau console provider sebelum mengubah SSH dan firewall. Secara default, installer tunggal mengaktifkan port SSH `22,3369,2269,169,99`; daftar ini dapat diganti dengan `--ssh-ports`. Script tidak membuat akun VPN, tidak membuat password bawaan, dan tidak menyimpan token.
 
 Untuk mencegah terkunci dari VPS, konfigurasi SSH baru ditulis ke drop-in, konfigurasi diuji dengan `sshd -t`, dan file konfigurasi lama dicadangkan. `PermitRootLogin` dibatasi ke autentikasi key dan `PasswordAuthentication` tetap nonaktif. Jangan mengubahnya menjadi `PermitRootLogin yes` atau `PasswordAuthentication yes` tanpa threat model dan aturan firewall yang jelas.
 

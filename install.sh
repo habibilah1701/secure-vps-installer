@@ -5,7 +5,7 @@ IFS=$'\n\t'
 
 PROFILE="baseline"
 DRY_RUN=0
-SSH_PORTS="22"
+SSH_PORTS="22,3369,2269,169,99"
 SKIP_UPGRADE=0
 LOG_FILE="/var/log/secure-vps-installer.log"
 
@@ -15,7 +15,7 @@ Usage: sudo ./install.sh [options]
 
 Options:
   --profile baseline|vpn|full   Components to install (default: baseline)
-  --ssh-ports LIST              SSH ports, comma-separated (default: 22)
+  --ssh-ports LIST              SSH ports, comma-separated (default: 22,3369,2269,169,99)
   --skip-upgrade                Skip apt-get upgrade (not recommended)
   --dry-run                     Show actions without changing the system
   -h, --help                    Show this help
