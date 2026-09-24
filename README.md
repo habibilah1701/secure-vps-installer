@@ -10,6 +10,14 @@ Target utama adalah Ubuntu 24.04 LTS (Noble) dan Debian stable yang masih diduku
 
 ## Penggunaan
 
+Instalasi satu perintah dari VPS baru:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/habibilah1701/secure-vps-installer/main/setup.sh | sudo bash -s -- --profile full
+```
+
+Jika repository sudah di-clone, entrypoint yang sama dapat dijalankan secara lokal:
+
 ```bash
 chmod 700 install.sh
 sudo ./install.sh --dry-run --profile baseline
