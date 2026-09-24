@@ -2,6 +2,8 @@
 
 Installer modular untuk Ubuntu dan Debian yang memprioritaskan **auditabilitas, paket resmi, dan perubahan yang dapat dipulihkan**. Proyek ini adalah pengganti aman untuk installer lama yang mengunduh dan mengeksekusi banyak skrip sebagai `root`.
 
+> **Perbaikan error 404:** versi ini tidak bergantung pada `vpsroot.sh` atau `addhost.sh` dari URL raw GitHub. File-file tersebut adalah sumber kegagalan pada installer lama ketika salah satunya tidak tersedia, lalu konfigurasi SSH telah berubah sebagian. Lihat [catatan keamanan](SECURITY.md).
+
 ## Dukungan
 
 Target utama adalah Ubuntu LTS dan Debian stable yang masih didukung oleh penyedia VPS. Script memvalidasi OS sebelum melakukan perubahan.
