@@ -21,6 +21,8 @@ sudo ./install.sh --profile full --ssh-ports 22,3369,2269,169,99
 
 Profile `baseline` memasang OpenSSH, Fail2Ban, nftables, WireGuard tools, dan Nginx. Profile `vpn` menambahkan OpenVPN, strongSwan, xl2tpd, serta Shadowsocks-libev jika tersedia melalui package manager. Profile `full` menambahkan Certbot.
 
+Pada awal proses, installer menjalankan `apt-get update` lalu `apt-get upgrade -y` sebelum memasang komponen. Ini memastikan paket sistem mendapat pembaruan keamanan. Upgrade paket dapat memicu restart service pada sebagian VPS; gunakan `--skip-upgrade` hanya jika Anda sudah mengatur maintenance window sendiri.
+
 Jalankan `--dry-run` lebih dahulu. Gunakan snapshot atau console provider sebelum mengubah SSH dan firewall. Port SSH default hanya `22`; port tambahan seperti `3369`, `2269`, `169`, dan `99` harus diminta secara eksplisit. Script tidak membuat akun VPN, tidak membuat password bawaan, dan tidak menyimpan token.
 
 Untuk mencegah terkunci dari VPS, konfigurasi SSH baru ditulis ke drop-in, konfigurasi diuji dengan `sshd -t`, dan file konfigurasi lama dicadangkan. `PermitRootLogin` dibatasi ke autentikasi key dan `PasswordAuthentication` tetap nonaktif. Jangan mengubahnya menjadi `PermitRootLogin yes` atau `PasswordAuthentication yes` tanpa threat model dan aturan firewall yang jelas.

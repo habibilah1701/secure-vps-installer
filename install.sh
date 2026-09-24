@@ -6,6 +6,7 @@ IFS=$'\n\t'
 PROFILE="baseline"
 DRY_RUN=0
 SSH_PORTS="22"
+SKIP_UPGRADE=0
 LOG_FILE="/var/log/secure-vps-installer.log"
 
 usage() {
@@ -15,6 +16,7 @@ Usage: sudo ./install.sh [options]
 Options:
   --profile baseline|vpn|full   Components to install (default: baseline)
   --ssh-ports LIST              SSH ports, comma-separated (default: 22)
+  --skip-upgrade                Skip apt-get upgrade (not recommended)
   --dry-run                     Show actions without changing the system
   -h, --help                    Show this help
 
@@ -31,6 +33,7 @@ while (($#)); do
   case "$1" in
     --profile) (($# >= 2)) || { echo "--profile requires a value" >&2; exit 2; }; PROFILE="$2"; shift 2 ;;
     --ssh-ports) (($# >= 2)) || { echo "--ssh-ports requires a value" >&2; exit 2; }; SSH_PORTS="$2"; shift 2 ;;
+    --skip-upgrade) SKIP_UPGRADE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
@@ -64,6 +67,11 @@ run() { if (( DRY_RUN )); then printf '+'; printf ' %q' "$@"; printf '\n'; else 
 log "Starting profile=$PROFILE os=${ID}:${VERSION_ID} ssh_ports=$SSH_PORTS dry_run=$DRY_RUN"
 export DEBIAN_FRONTEND=noninteractive
 run apt-get update
+if (( ! SKIP_UPGRADE )); then
+  run apt-get upgrade -y
+else
+  log "Skipping apt-get upgrade by request"
+fi
 run apt-get install -y --no-install-recommends ca-certificates curl unzip jq nftables fail2ban openssh-server wireguard-tools nginx
 
 if [[ "$PROFILE" == vpn || "$PROFILE" == full ]]; then
