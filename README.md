@@ -6,7 +6,7 @@ Installer modular untuk Ubuntu dan Debian yang memprioritaskan **auditabilitas, 
 
 ## Dukungan
 
-Target utama adalah Ubuntu LTS dan Debian stable yang masih didukung oleh penyedia VPS. Script memvalidasi OS sebelum melakukan perubahan.
+Target utama adalah Ubuntu 24.04 LTS (Noble) dan Debian stable yang masih didukung oleh penyedia VPS. Ubuntu 18.04/20.04/22.04 tetap dikenali untuk kompatibilitas, tetapi penggunaan rilis yang masih menerima security update lebih disarankan. Script memvalidasi OS sebelum melakukan perubahan.
 
 ## Penggunaan
 
@@ -21,7 +21,7 @@ sudo ./install.sh --profile full --ssh-ports 22,3369,2269,169,99
 
 Profile `baseline` memasang OpenSSH, Fail2Ban, nftables, WireGuard tools, dan Nginx. Profile `vpn` menambahkan OpenVPN, strongSwan, xl2tpd, serta Shadowsocks-libev jika tersedia melalui package manager. Profile `full` menambahkan Certbot.
 
-Pada awal proses, installer menjalankan `apt-get update` lalu `apt-get upgrade -y` sebelum memasang komponen. Ini memastikan paket sistem mendapat pembaruan keamanan. Upgrade paket dapat memicu restart service pada sebagian VPS; gunakan `--skip-upgrade` hanya jika Anda sudah mengatur maintenance window sendiri. Dependensi dasar yang dipasang meliputi `bzip2`, `gzip`, `coreutils`, `screen`, `curl`, `unzip`, `jq`, `nftables`, `fail2ban`, OpenSSH, WireGuard tools, dan Nginx.
+Pada awal proses, installer menjalankan `apt-get update` lalu `apt-get upgrade -y` sebelum memasang komponen. Ini memastikan paket sistem mendapat pembaruan keamanan. Upgrade paket dapat memicu restart service pada sebagian VPS; gunakan `--skip-upgrade` hanya jika Anda sudah mengatur maintenance window sendiri. Dependensi dasar yang dipasang meliputi `bzip2`, `gzip`, `coreutils`, `screen`, `curl`, `unzip`, `jq`, `nftables`, `fail2ban`, OpenSSH, WireGuard tools, dan Nginx. Paket VPN dan Certbot dipasang satu per satu bila tersedia di repository OS, sehingga satu paket opsional yang hilang tidak membatalkan komponen lain.
 
 `screen` tersedia untuk maintenance manual dan kompatibilitas dengan workflow VPS lama, tetapi installer baru tidak bergantung pada sesi `screen` untuk menyembunyikan proses. `update-grub` tidak dipanggil karena installer tidak mengubah kernel atau bootloader. IPv6 juga tidak dimatikan secara global; keputusan tersebut harus mengikuti kebutuhan jaringan VPS, bukan dipaksakan oleh installer.
 

@@ -63,6 +63,18 @@ fi
 log() { printf '[%s] %s\n' "$(date -Is)" "$*" | tee -a "$LOG_FILE"; }
 die() { log "ERROR: $*"; exit 1; }
 run() { if (( DRY_RUN )); then printf '+'; printf ' %q' "$@"; printf '\n'; else "$@"; fi; }
+install_available() {
+  local _pkg
+  for _pkg in "$@"; do
+    if (( DRY_RUN )); then
+      run apt-get install -y --no-install-recommends "$_pkg"
+    elif apt-cache show "$_pkg" >/dev/null 2>&1; then
+      run apt-get install -y --no-install-recommends "$_pkg" || log "Could not install optional package: $_pkg"
+    else
+      log "Skipping unavailable package: $_pkg"
+    fi
+  done
+}
 
 log "Starting profile=$PROFILE os=${ID}:${VERSION_ID} ssh_ports=$SSH_PORTS dry_run=$DRY_RUN"
 export DEBIAN_FRONTEND=noninteractive
@@ -75,10 +87,10 @@ fi
 run apt-get install -y --no-install-recommends ca-certificates bzip2 gzip coreutils screen curl unzip jq nftables fail2ban openssh-server wireguard-tools nginx
 
 if [[ "$PROFILE" == vpn || "$PROFILE" == full ]]; then
-  run apt-get install -y --no-install-recommends openvpn strongswan xl2tpd shadowsocks-libev || log "Some optional VPN packages are unavailable; continuing"
+  install_available openvpn strongswan xl2tpd shadowsocks-libev
 fi
 if [[ "$PROFILE" == full ]]; then
-  run apt-get install -y --no-install-recommends certbot python3-certbot-nginx || log "Certbot unavailable; install separately if needed"
+  install_available certbot python3-certbot-nginx
 fi
 
 if (( ! DRY_RUN )); then
