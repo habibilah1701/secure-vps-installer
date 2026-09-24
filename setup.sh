@@ -13,6 +13,17 @@ TMP_INSTALLER="$(mktemp /tmp/secure-vps-install.XXXXXX.sh)"
 cleanup() { rm -f "$TMP_INSTALLER"; }
 trap cleanup EXIT
 
+if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]] && command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y ca-certificates curl
+  else
+    echo 'curl atau wget diperlukan; bootstrap tidak dapat memasangnya otomatis' >&2
+    exit 1
+  fi
+fi
+
 if command -v curl >/dev/null 2>&1; then
   curl --proto '=https' --tlsv1.2 -fsSL "$REPO_RAW" -o "$TMP_INSTALLER"
 elif command -v wget >/dev/null 2>&1; then
