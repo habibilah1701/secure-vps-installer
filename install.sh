@@ -58,6 +58,18 @@ install -d -m 0750 /var/log
 : > "$LOG_FILE"; chmod 0600 "$LOG_FILE"
 log() { printf '[%s] %s\n' "$(date -Is)" "$*" | tee -a "$LOG_FILE"; }
 fail() { log "FAILED: $*"; exit 1; }
+apt_retry() {
+  local _label="$1"; shift
+  local _attempt
+  for _attempt in 1 2 3; do
+    log "$_label attempt $_attempt/3"
+    if "$@" >>"$LOG_FILE" 2>&1; then return 0; fi
+    sleep 5
+  done
+  log "$_label failed; last apt output:"
+  tail -80 "$LOG_FILE" >&2 || true
+  return 1
+}
 optional_install() {
   local pkg
   for pkg in "$@"; do
@@ -71,8 +83,8 @@ optional_install() {
 
 log "HABIBILLAH installer starting on ${ID}:${VERSION_ID}"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update >>"$LOG_FILE" 2>&1 || fail 'apt update failed'
-if (( ! SKIP_UPGRADE )); then apt-get upgrade -y >>"$LOG_FILE" 2>&1 || fail 'apt upgrade failed'; fi
+apt_retry 'apt update' apt-get update || fail 'apt update failed; inspect /var/log/habibillah-installer.log'
+if (( ! SKIP_UPGRADE )); then apt_retry 'apt upgrade' apt-get upgrade -y || fail 'apt upgrade failed; inspect /var/log/habibillah-installer.log'; fi
 optional_install ca-certificates bzip2 gzip coreutils screen curl wget unzip zip jq git sed nano bc \
   gnupg gnupg1 dirmngr apt-transport-https build-essential gcc g++ make cmake ruby \
   python3 python3-pip rsyslog net-tools lsof iftop htop neofetch dos2unix \
